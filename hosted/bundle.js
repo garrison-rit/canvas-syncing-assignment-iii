@@ -5,6 +5,7 @@ var users = void 0; // keys: time -> obj. last -> time. if
 var ctx = void 0;
 var sock = void 0;
 var ours = -1;
+var myWindow = void 0;
 var vector = { x: 0, y: 0 };
 var activeKeys = {};
 
@@ -58,8 +59,20 @@ function onKeyUp(event) {
   sock.emit('act', act);
 }
 
+var alphaMultip = 4.9;
+
+var lerpVector = function lerpVector(v1, v2, a) {
+  return (
+    // return v1.scale(a).add(v2.scale(1-a));
+
+    { x: v1.x * a + v2.x * (1 - a), y: v1.y * a + v2.y * (1 - a) }
+  );
+};
+var deltaTime = 0;
+var last = 0;
 // canvas based
-var draw = function draw(shape) {
+var draw = function draw(shap) {
+  var shape = shap;
   if (shape.id === ours) {
     // then its local
     ctx.fillStyle = 'red';
@@ -67,16 +80,27 @@ var draw = function draw(shape) {
     // networked shape
     ctx.fillStyle = 'black';
   }
-  var t = shape.transform;
+  shape.anim.alpha += deltaTime / 1000 * alphaMultip;
+  shape.anim.alpha = Math.min(1, shape.anim.alpha);
+  console.log(shape.anim);
+  var t = lerpVector(shape.anim.target, shape.anim.last, shape.anim.alpha);
   var ct = shape.constant.transform;
   ctx.fillRect(t.x - ct.halfwidth, t.y - ct.halfheight, ct.width, ct.height);
-  //console.log("drawd at "+t.x+","+t.y);
-  //console.dir(ct);
+  // console.log("drawd at "+t.x+","+t.y);
+  // console.dir(ct);
+};
+
+var rollAlpha = function rollAlpha(name) {
+  users[name].anim.last = lerpVector(users[name].anim.target, users[name].anim.last, users[name].anim.alpha);
+  users[name].anim.target = users[name].transform;
+  users[name].anim.alpha = 0;
 };
 
 var act = function act(data) {
+  console.log(data);
   data.users.forEach(function (itm) {
     users[itm.id].transform = itm.transform;
+    rollAlpha(itm.id);
   });
 };
 
@@ -85,6 +109,7 @@ var addUser = function addUser(user) {
   users[user.id] = user;
   users[user.id].constant.transform.halfwidth = Math.round(user.constant.transform.width / 2);
   users[user.id].constant.transform.halfheight = Math.round(user.constant.transform.height / 2);
+  users[user.id].anim = { last: user.transform, target: user.transform, alpha: 1 };
   console.log(users);
 };
 
@@ -92,9 +117,11 @@ var removeUser = function removeUser(user) {
   delete users[user.id];
 };
 
-var redraw = function redraw() {
+var redraw = function redraw(dt) {
+  console.log(dt);
   if (users === undefined) {
     console.log('No users');
+    myWindow.requestAnimationFrame(redraw);
     return;
   }
 
@@ -104,8 +131,11 @@ var redraw = function redraw() {
     drawsList.push(users[itm]);
   });
 
+  deltaTime = dt - last;
+  last = dt;
   if (drawsList.length === 0) {
     console.log('nothing to redraw');
+    myWindow.requestAnimationFrame(redraw);
     return;
   }
 
@@ -117,23 +147,24 @@ var redraw = function redraw() {
   drawsList.forEach(function (itm) {
     draw(itm);
   });
+  myWindow.requestAnimationFrame(redraw);
 };
 
 // Setup
 var setupSocket = function setupSocket(socket) {
   socket.on('act', function (data) {
     act(data);
-    redraw();
+    // redraw();
   });
 
   socket.on('addUser', function (data) {
     addUser(data.user);
-    redraw();
+    // redraw();
   });
 
   socket.on('removeUser', function (data) {
     removeUser(data.user);
-    redraw();
+    // redraw();
   });
 
   socket.on('syncCanvas', function (data) {
@@ -141,11 +172,12 @@ var setupSocket = function setupSocket(socket) {
       addUser(data.users[itm]);
     });
     ours = data.id;
-    redraw();
+    // redraw();
   });
 };
 
-var init = function init(window, document, io) {
+var init = function init(w, document, io) {
+  myWindow = w;
   users = {};
   var canvas = document.querySelector('#myCanvas');
   ctx = document.querySelector('#myCanvas').getContext('2d');
@@ -154,8 +186,10 @@ var init = function init(window, document, io) {
   sock = io.connect();
   setupSocket(sock);
   // keyboard input
-  window.addEventListener('keydown', onKeyDown, false);
-  window.addEventListener('keyup', onKeyUp, false);
+  myWindow.addEventListener('keydown', onKeyDown, false);
+  myWindow.addEventListener('keyup', onKeyUp, false);
+
+  myWindow.requestAnimationFrame(redraw);
   /*
   setInterval(function(){
       sendMessage(socket);

@@ -3,6 +3,7 @@ let users;// keys: time -> obj. last -> time. if
 let ctx;
 let sock;
 let ours = -1;
+let myWindow;
 const vector = { x: 0, y: 0 };
 const activeKeys = {};
 
@@ -51,8 +52,17 @@ function onKeyUp(event) {
   sock.emit('act', act);
 }
 
+const alphaMultip = 4.9;
+
+const lerpVector = (v1, v2, a) =>
+    // return v1.scale(a).add(v2.scale(1-a));
+
+   ({ x: (v1.x * a) + (v2.x * (1 - a)), y: (v1.y * a) + (v2.y * (1 - a)) });
+let deltaTime = 0;
+let last = 0;
 // canvas based
-const draw = (shape) => {
+const draw = (shap) => {
+  const shape = shap;
   if (shape.id === ours) {
         // then its local
     ctx.fillStyle = 'red';
@@ -60,25 +70,40 @@ const draw = (shape) => {
         // networked shape
     ctx.fillStyle = 'black';
   }
-  const t = shape.transform;
+  shape.anim.alpha += (deltaTime / 1000) * alphaMultip;
+  shape.anim.alpha = Math.min(1, shape.anim.alpha);
+  console.log(shape.anim);
+  const t = lerpVector(shape.anim.target, shape.anim.last, shape.anim.alpha);
   const ct = shape.constant.transform;
   ctx.fillRect(t.x - ct.halfwidth, t.y - ct.halfheight, ct.width, ct.height);
-    //console.log("drawd at "+t.x+","+t.y);
-    //console.dir(ct);
+    // console.log("drawd at "+t.x+","+t.y);
+    // console.dir(ct);
+};
+
+
+const rollAlpha = (name) => {
+  users[name].anim.last = lerpVector(users[name].anim.target,
+                                     users[name].anim.last,
+                                     users[name].anim.alpha);
+  users[name].anim.target = users[name].transform;
+  users[name].anim.alpha = 0;
 };
 
 const act = (data) => {
+  console.log(data);
   data.users.forEach((itm) => {
     users[itm.id].transform = itm.transform;
+    rollAlpha(itm.id);
   });
 };
 
 const addUser = (user) => {
-    console.log(user);
+  console.log(user);
   users[user.id] = user;
   users[user.id].constant.transform.halfwidth = Math.round(user.constant.transform.width / 2);
   users[user.id].constant.transform.halfheight = Math.round(user.constant.transform.height / 2);
-    console.log(users);
+  users[user.id].anim = { last: user.transform, target: user.transform, alpha: 1 };
+  console.log(users);
 };
 
 
@@ -86,9 +111,11 @@ const removeUser = (user) => {
   delete users[user.id];
 };
 
-const redraw = () => {
+const redraw = (dt) => {
+  console.log(dt);
   if (users === undefined) {
     console.log('No users');
+    myWindow.requestAnimationFrame(redraw);
     return;
   }
 
@@ -98,8 +125,11 @@ const redraw = () => {
     drawsList.push(users[itm]);
   });
 
+  deltaTime = dt - last;
+  last = dt;
   if (drawsList.length === 0) {
     console.log('nothing to redraw');
+    myWindow.requestAnimationFrame(redraw);
     return;
   }
 
@@ -111,34 +141,36 @@ const redraw = () => {
   drawsList.forEach((itm) => {
     draw(itm);
   });
+  myWindow.requestAnimationFrame(redraw);
 };
 
 // Setup
 const setupSocket = (socket) => {
   socket.on('act', (data) => {
     act(data);
-    redraw();
+    // redraw();
   });
 
   socket.on('addUser', (data) => {
     addUser(data.user);
-    redraw();
+    // redraw();
   });
 
   socket.on('removeUser', (data) => {
     removeUser(data.user);
-    redraw();
+    // redraw();
   });
 
   socket.on('syncCanvas', (data) => {
-    Object.keys(data.users).forEach((itm)=>{addUser(data.users[itm])});
+    Object.keys(data.users).forEach((itm) => { addUser(data.users[itm]); });
     ours = data.id;
-    redraw();
+    // redraw();
   });
 };
 
 
-const init = (window, document, io) => {
+const init = (w, document, io) => {
+  myWindow = w;
   users = {};
   const canvas = document.querySelector('#myCanvas');
   ctx = document.querySelector('#myCanvas').getContext('2d');
@@ -147,8 +179,10 @@ const init = (window, document, io) => {
   sock = io.connect();
   setupSocket(sock);
   // keyboard input
-  window.addEventListener('keydown', onKeyDown, false);
-  window.addEventListener('keyup', onKeyUp, false);
+  myWindow.addEventListener('keydown', onKeyDown, false);
+  myWindow.addEventListener('keyup', onKeyUp, false);
+
+  myWindow.requestAnimationFrame(redraw);
     /*
     setInterval(function(){
         sendMessage(socket);
