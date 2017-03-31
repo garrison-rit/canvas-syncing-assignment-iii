@@ -6,9 +6,9 @@
   "scripts": {
     "build": "babel ./client --out-file ./hosted/bundle.js",
     "watch": "babel --watch ./client --out-file ./hosted/bundle.js",
-    "nodemon": "nodemon --watch ./client --out-file ./hosted/bundle.js",
-    "start": "node ./src/server.js",
-    "pretest": "eslint ./src --fix",
+    "nodemon": "nodemon --watch ./server ./server/app.js",
+    "start": "node ./server/app.js",
+    "pretest": "eslint ./client --fix",
     "test": "echo \"Tests complete\""
   },
   "repository": {

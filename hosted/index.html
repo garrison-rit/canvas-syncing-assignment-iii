@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="bundle.js"></script>
+    <script type="text/javascript">
+        
+            window.onload = () =>{
+                init(window, document, io);;
+            }
+
+    </script>
+    <style>
+        body{
+            background-color: darkgray;
+        }
+        #topCanvas{
+            position: absolute;
+        }
+        #myCanvas {
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas" width="700" height="500">
+        Nice try, internet explorer 2.
+    </canvas>
+</body>
+</html>
