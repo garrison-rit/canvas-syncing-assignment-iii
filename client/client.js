@@ -72,7 +72,6 @@ const draw = (shap) => {
   }
   shape.anim.alpha += (deltaTime / 1000) * alphaMultip;
   shape.anim.alpha = Math.min(1, shape.anim.alpha);
-  console.log(shape.anim);
   const t = lerpVector(shape.anim.target, shape.anim.last, shape.anim.alpha);
   const ct = shape.constant.transform;
   ctx.fillRect(t.x - ct.halfwidth, t.y - ct.halfheight, ct.width, ct.height);
@@ -90,7 +89,6 @@ const rollAlpha = (name) => {
 };
 
 const act = (data) => {
-  console.log(data);
   data.users.forEach((itm) => {
     users[itm.id].transform = itm.transform;
     rollAlpha(itm.id);
@@ -108,11 +106,11 @@ const addUser = (user) => {
 
 
 const removeUser = (user) => {
+  console.log(`bye${user}`);
   delete users[user.id];
 };
 
 const redraw = (dt) => {
-  console.log(dt);
   if (users === undefined) {
     console.log('No users');
     myWindow.requestAnimationFrame(redraw);

@@ -83,6 +83,7 @@ const onJoin = (sock) => {
     };// undefined cuz unused//socket;d
     
     users[socket.uid] = user
+      io.to('room1').emit('addUser', { user: user, name: socket.uid });
   socket.join('room1');
   socket.emit('syncCanvas', { users, id : socket.uid });
 };
@@ -111,7 +112,7 @@ const onDisconnect = (socket) => {
       delete users[socket.uid];
       freeIds.push(socket.uid);
 
-      io.to('room1').emit('disconnectPlayer', { name: socket.uid });
+      io.to('room1').emit('removeUser', { user:{id: socket.uid }});
     });
 };
 
